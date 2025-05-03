@@ -1,31 +1,15 @@
-# Copyright 2021 Google LLC
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
-# Invoke tasks - a Python-equivelant of a Makefile or Rakefile.
-# http://www.pyinvoke.org/
-
-# LINTING NOTE: invoke doesn't support annotations in task signatures.
-# https://github.com/pyinvoke/invoke/issues/777
-# Workaround: add "  # noqa: ANN001, ANN201"
-
 import os
 import sys
+import platform
 from typing import List
-
 from invoke import task
 
-venv = "source ./venv/bin/activate"
+#Activar entorno virtual
+if platform.system() == "Windows":
+    venv = ".\\venv\\Scripts\\Activate.ps1"
+else:
+    venv = "source ./venv/bin/activate"
+
 GOOGLE_CLOUD_PROJECT = os.environ.get("GOOGLE_CLOUD_PROJECT")
 REGION = os.environ.get("REGION", "us-central1")
 
@@ -37,6 +21,78 @@ def require_project(c):  # noqa: ANN001, ANN201
         print("GOOGLE_CLOUD_PROJECT not defined. Required for task")
         sys.exit(1)
 
+@task
+def dev(c):
+    """Ejecuta la app en modo desarrollo"""
+    print("🚀 Lanzando app en modo desarrollo...")
+    if platform.system() == "Windows":
+        c.run(f"{venv}; FLASK_ENV=development python app.py")
+    else:
+        c.run(f"{venv} && FLASK_ENV=development python app.py")
+
+
+
+
+
+@task
+def test(c):
+    """Corre tests unitarios"""
+    if platform.system() == "Windows":
+        c.run(f"{venv}; pytest test/test_app.py")
+    else:
+        c.run(f"{venv} && pytest test/test_app.py")
+
+
+@task
+def lint(c):
+    """Chequea el estilo del código"""
+    c.run("flake8 app.py")
+
+
+@task
+def fix(c):
+    """Aplica formato automático (black + isort)"""
+    c.run("black . --force-exclude venv")
+    c.run("isort . --profile google")
+
+
+@task(pre=[require_project])
+def build(c):
+    """Construye la imagen y la sube a Google Cloud Build"""
+    image_uri = f"{REGION}-docker.pkg.dev/{GOOGLE_CLOUD_PROJECT}/samples/microservice-template:manual"
+    c.run(f"gcloud builds submit --pack image={image_uri}")
+
+
+@task(pre=[require_project])
+def deploy(c):
+    """Despliega en Cloud Run"""
+    image_uri = f"{REGION}-docker.pkg.dev/{GOOGLE_CLOUD_PROJECT}/samples/microservice-template:manual"
+    c.run(
+        f"gcloud run deploy microservice-template "
+        f"--image {image_uri} "
+        f"--platform managed --region {REGION} --allow-unauthenticated"
+    )
+
+@task
+def setup(c):
+    """Crea entorno virtual e instala dependencias"""
+    print("🔧 Creando entorno virtual...")
+    c.run("python -m venv venv", warn=True)
+
+    print("📦 Instalando dependencias...")
+    if platform.system() == "Windows":
+        c.run(".\\venv\\Scripts\\pip install -r requirements.txt")
+    else:
+        c.run("venv/bin/pip install -r requirements.txt")
+
+
+@task
+def setup_test(c):
+    """Instala dependencias de test"""
+    if platform.system() == "Windows":
+        c.run(".\\venv\\Scripts\\pip install -r requirements-test.txt")
+    else:
+        c.run("venv/bin/pip install -r requirements-test.txt")
 
 @task
 def require_venv(c, test_requirements=False, quiet=True):  # noqa: ANN001, ANN201
