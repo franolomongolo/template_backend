@@ -25,10 +25,9 @@ def require_project(c):  # noqa: ANN001, ANN201
 def dev(c):
     """Ejecuta la app en modo desarrollo"""
     print("🚀 Lanzando app en modo desarrollo...")
-    if platform.system() == "Windows":
-        c.run(f"{venv}; FLASK_ENV=development python app.py")
-    else:
-        c.run(f"{venv} && FLASK_ENV=development python app.py")
+    c.run("set FLASK_ENV=development && python app.py", pty=True)
+
+
 
 
 

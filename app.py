@@ -16,22 +16,23 @@ import signal
 import sys
 from types import FrameType
 
-from flask import Flask
+from flask import Flask, request
 
 from utils.logging import logger
 
 app = Flask(__name__)
 
 
-@app.route("/")
-def hello() -> str:
+@app.route("/saluda", methods=["GET"])
+def saluda():
     # Use basic logging with custom fields
     logger.info(logField="custom-entry", arbitraryField="custom-entry")
 
     # https://cloud.google.com/run/docs/logging#correlate-logs
     logger.info("Child logger with trace Id.")
 
-    return "Hello, World!"
+    nombre = request.args.get("nombre", "mundo")
+    return f"Hola {nombre}", 200
 
 
 def shutdown_handler(signal_int: int, frame: FrameType) -> None:
