@@ -32,7 +32,7 @@ import sys
 @task
 def dev(c):
     """Ejecuta sin entorno virtual (solo para bypass del bloqueo)"""
-    c.run("set FLASK_ENV=development && python app.py", pty=True)
+    c.run("set FLASK_ENV=development && python app.py")
 
 
 
@@ -79,11 +79,11 @@ def deploy(c):
     project = os.getenv("GOOGLE_CLOUD_PROJECT")
     region = os.getenv("REGION", "europe-west1")
     repo = os.getenv("REPOSITORY", "samples")
-    image_name = os.getenv("IMAGE_NAME", "fake-init-image")
-    service_name = os.getenv("SERVICE_NAME", "fake-init-service")
-    tag = os.getenv("IMAGE_TAG", "latest")
+    image_name = os.getenv("IMAGE_NAME", "microservice-template")
+    image_tag = os.getenv("IMAGE_TAG", "manual")
+    service_name = os.getenv("SERVICE_NAME", "microservice-template")
 
-    image_path = f"{region}-docker.pkg.dev/{project}/{repo}/{image_name}:{tag}"
+    image_path = f"{region}-docker.pkg.dev/{project}/{repo}/{image_name}:{image_tag}"
 
     print(f"🚀 Desplegando {image_path} en Cloud Run como servicio '{service_name}'...")
     c.run(
@@ -91,8 +91,7 @@ def deploy(c):
         f"--image={image_path} "
         f"--platform=managed "
         f"--region={region} "
-        f"--allow-unauthenticated",
-        pty=True
+        f"--allow-unauthenticated"
     )
 
 @task
@@ -227,29 +226,22 @@ def system_test(c):  # noqa: ANN001, ANN201
 
 @task
 def build_and_push(c):
-    """
-    🐳 Construye la imagen Docker y la sube a Artifact Registry.
-    """
-    from dotenv import load_dotenv
-    load_dotenv()
+    """Construye y sube la imagen Docker a Artifact Registry"""
+    import os
 
-    project_id = os.getenv("GOOGLE_CLOUD_PROJECT")
+    project = os.getenv("GOOGLE_CLOUD_PROJECT")
     region = os.getenv("REGION", "europe-west1")
-    repository = os.getenv("REPOSITORY", "samples")
-    image_name = os.getenv("IMAGE_NAME", "fake-init-image")
+    repo = os.getenv("REPOSITORY", "samples")
+    image_name = os.getenv("IMAGE_NAME", "microservice-template")
+    image_tag = os.getenv("IMAGE_TAG", "manual")
 
-    if not project_id:
-        print("❌ Falta configurar GOOGLE_CLOUD_PROJECT en el .env")
-        return
+    image_path = f"{region}-docker.pkg.dev/{project}/{repo}/{image_name}:{image_tag}"
 
-    image_tag = f"{region}-docker.pkg.dev/{project_id}/{repository}/{image_name}"
+    print(f"🔨 Construyendo imagen con tag: {image_path}...")
+    c.run(f"docker build -t {image_path} .")
 
-    print(f"🔨 Construyendo imagen con tag: {image_tag}...")
-    c.run(f"docker build -t {image_tag} .")
-
-    print(f"🚀 Haciendo push de la imagen a Artifact Registry...")
-    c.run(f"docker push {image_tag}")
-
+    print("🚀 Haciendo push de la imagen a Artifact Registry...")
+    c.run(f"docker push {image_path}")
     print("✅ Imagen subida correctamente.")
 
 
