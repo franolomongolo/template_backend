@@ -68,12 +68,21 @@ def build_and_push(c):
 @task
 def deploy(c):
     """Despliega la imagen a Cloud Run"""
+    import re
+
     project = get_env("GOOGLE_CLOUD_PROJECT")
     region = get_env("REGION")
     repo = get_env("REPOSITORY")
     image_name = get_env("IMAGE_NAME")
     tag = get_env("IMAGE_TAG", "latest")
     service_name = get_env("SERVICE_NAME")
+
+    # Validación de nombre
+    if not re.match(r"^[a-z0-9]([-a-z0-9]*[a-z0-9])?$", service_name):
+        raise ValueError(
+            f"❌ Invalid SERVICE_NAME '{service_name}'. It must only contain lowercase letters, numbers, "
+            f"and hyphens (-), must not begin or end with a hyphen, and be <= 63 characters."
+        )
 
     image_path = f"{region}-docker.pkg.dev/{project}/{repo}/{image_name}:{tag}"
     print(f"🚀 Desplegando {image_path} en Cloud Run como servicio '{service_name}'...")
@@ -86,3 +95,5 @@ def deploy(c):
         f"--allow-unauthenticated",
         pty=False
     )
+    print("✅ Servicio desplegado correctamente.")
+
